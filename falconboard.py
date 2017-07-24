@@ -45,8 +45,10 @@ class StorageEngine:
     def add_post(self, board, post):
         self.check_board(board)
         self.check_post(post)
+        counters = self.db['counters']
+        _id = counters.find_and_modify(query={"board": board}, update={"$inc": "max_id"})
+        logging.info(_id)
         coll = self.db['board.' + board]
-        _id = int(6)
         post["_id"] = _id
         return coll.insert_one(post)
 
