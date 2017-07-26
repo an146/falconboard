@@ -45,8 +45,8 @@ class StorageEngine:
     def get_post(self, board, post):
         self.check_board(board)
         coll = self.db['board.' + board]
-        post = coll.find_one({"_id": post})
         comments = coll.find({"parent": post})
+        post = coll.find_one({"_id": post})
         return [post] + list(comments)
 
     def add_post(self, board, parent, post):
@@ -181,24 +181,22 @@ class DefaultSink(object):
     def on_get(self, req, resp):
         resp.body = str(req.path)
 
-def user_loader(username, password):
-    if password != username + '123':
-        raise falcon.HTTPError(falcon.HTTP_403, 'Auth failed', 'Incorrect password')
-    return {'username': username}
-auth_backend = falcon_auth.BasicAuthBackend(user_loader)
-auth_middleware = falcon_auth.FalconAuthMiddleware(auth_backend, exempt_routes=['/_api/'], exempt_methods=['HEAD', 'GET', 'POST'])
+def user_loader():
+    return {'username': 'anonymous'}
+auth_backend = falcon_auth.NoneAuthBackend(user_loader)
+auth_middleware = falcon_auth.FalconAuthMiddleware(auth_backend)
 
 # Configure your WSGI server to load "threads.app" (app is a WSGI callable)
-app = falcon.API(middleware=auth_middleware)
+app = falcon.API(middleware=[auth_middleware])
 
 db = StorageEngine()
 
 threads = ThreadsResource(db)
 post = PostResource(db)
-app.add_route('/_api/{board}', threads)
-app.add_route('/_api/{board}/', threads)
-app.add_route('/_api/{board}/{post}', post)
-app.add_route('/_api/{board}/{post}/', post)
+app.add_route('/{board}', threads)
+app.add_route('/{board}/', threads)
+app.add_route('/{board}/{post}', post)
+app.add_route('/{board}/{post}/', post)
 app.add_sink(DefaultSink().on_get, prefix='/')
 #app.add_route('/{board}/', BoardResource(db))
 #app.add_route('/{board}/{thread}', BoardResource(db))
