@@ -20,7 +20,8 @@ def mongo_page(cursor, page):
     return mongo_limit(cursor.sort("_id", pymongo.ASCENDING), step * (page + 1)).limit(step)
 
 class StorageEngine:
-    client = pymongo.MongoClient('mongodb://falconboard:password@ds161022.mlab.com:61022/falconboard')
+    with open('mongo.url', 'r') as f:
+	    client = pymongo.MongoClient(f.read())
     db = client.get_default_database()
 
     def check_board(self, board):
