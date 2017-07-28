@@ -1,0 +1,56 @@
+<html>
+ <head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.10/handlebars.min.js"></script>
+  <title>Falconboard</title>
+  <script id="post-template" type="text/x-handlebars-template">
+   <article>
+    Id: <a href="http://falconboard.net.ru/{{board}}/{{_id}}/">{{_id}}</a>
+    Email: {{email}}
+    Text: {{text}}
+   </article>
+  </script>
+  <script lang="javascript">
+   var post_template = Handlebars.compile($("#post-template").html());
+  </script>
+ </head> 
+ <body>
+  <main>
+   <div id="posts">
+   </div>
+   <form action="" method="post">
+    Email: <input type="text" name="email"></input><br />
+    Text: <textarea name="text"></textarea><br />
+    <button type="submit" name="submit" value="Send" />
+   </form>
+  <script lang="javascript">
+$(document).ready(function(){
+ $("#posts").text("browsing " + window.location.pathname);
+ var path = "/_api" + window.location.pathname;
+ var board = window.location.pathname.slice(1, window.location.pathname.slice(1).indexOf('/') + 1);
+ //$("form").attr("action", path);
+ $("form").submit(function(event) {
+  $.post(path, $(this).serialize(), function(data) {
+   //alert(data["redirect"]);
+   document.location.href = data["redirect"];
+   location.reload(true);
+  });
+  event.preventDefault();
+ });
+ var jqxhr = $.ajax(path)
+  .done(function(data) {
+    //var text = JSON.stringify(data);
+    //alert(text);
+    for (var i = 0; i < data.length; i++) {
+     var post = data[i];
+     post["board"] = board;
+     $("#posts").append(post_template(post));
+    }
+  })
+  .fail(function() {
+    alert("ajax error");
+  })
+});
+  </script>
+ </body>
+</html>
