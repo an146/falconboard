@@ -19,8 +19,8 @@
    <div id="posts">
    </div>
    <form action="" method="post">
-    Email: <input type="text" name="email"></input><br />
-    Text: <textarea name="text"></textarea><br />
+    Email: <input type="text" name="email" id="email"></input><br />
+    Text: <textarea name="text" id="text"></textarea><br />
     <button type="submit" name="submit" value="Send" />
    </form>
   <script lang="javascript">
@@ -30,10 +30,18 @@ $(document).ready(function(){
  var board = window.location.pathname.slice(1, window.location.pathname.slice(1).indexOf('/') + 1);
  //$("form").attr("action", path);
  $("form").submit(function(event) {
-  $.post(path, $(this).serialize(), function(data) {
-   //alert(data["redirect"]);
-   document.location.href = data["redirect"];
-   location.reload(true);
+  req = {"email": $("#email").val(), "text": $("#text").val()};
+  ajax = $.ajax({
+   type: "POST",
+   url: path,
+   data: JSON.stringify(req),
+   contentType: "application/json; charset=utf-8"
+  });
+  ajax.done(function(data, textStatus, request) {
+   document.location.href = request.getResponseHeader("Location");
+  });
+  ajax.fail(function(xhr, status) {
+   alert(status);
   });
   event.preventDefault();
  });
