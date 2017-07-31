@@ -5,7 +5,6 @@ import traceback
 from wsgiref import simple_server
 
 import falcon
-import falcon_auth
 import pymongo
 
 
@@ -16,12 +15,12 @@ def mongo_limit(cursor, limit):
     return cursor.skip(skip >= 0 and skip or 0)
 
 def mongo_page(cursor, page):
-    step = 3
+    step = 15
     return mongo_limit(cursor.sort("_id", pymongo.ASCENDING), step * (page + 1)).limit(step)
 
 class StorageEngine:
     with open('mongo.url', 'r') as f:
-	    client = pymongo.MongoClient(f.read())
+	    client = pymongo.MongoClient(f.read().rstrip())
     db = client.get_default_database()
 
     def check_board(self, board):
@@ -30,7 +29,7 @@ class StorageEngine:
 
     def check_post(self, post):
         for field in post:
-            if not field in ['title', 'text', 'parent', 'sage']:
+            if not field in ['email', 'text', 'parent', 'sage']:
                 raise falcon.HTTPError(falcon.HTTP_403, 'Invalid argument', 'Unknown field: ' + field)
 
     def get_posts(self, board):
@@ -54,32 +53,15 @@ class StorageEngine:
         self.check_board(board)
         self.check_post(post)
         counters = self.db['counters']
-        _id = counters.find_and_modify(query={"_id": board}, update={"$inc": {"next": 1}})["next"]
+        _id = counters.find_and_modify(query={"_id": board}, update={"$inc": {"next": 1}})
         if _id == None:
             raise falcon.HTTPError(falcon.HTTP_500, 'Counters lost', 'Internal error, can\'t find counter for ' + board)
+        _id = int(_id["next"])
         coll = self.db['board.' + board]
         post["_id"] = _id
         post["parent"] = parent
         return coll.insert_one(post)
 
-
-
-class StorageError(Exception):
-    @staticmethod
-    def handle(ex, req, resp, params):
-        description = ('Sorry, couldn\'t write your thread to the '
-                       'database. It worked on my box.')
-
-        raise falcon.HTTPError(falcon.HTTP_725,
-                               'Database Error',
-                               description)
-
-
-def check_media_type(req, resp, params):
-    if not req.client_accepts_json:
-        raise falcon.HTTPUnsupportedMediaType(
-            'This API only supports the JSON media type.',
-            href='http://docs.examples.com/api/json')
 
 
 class PostResource:
@@ -129,8 +111,9 @@ class PostResource:
 
         resp.status = falcon.HTTP_201
         resp.location = '/%s/%s/' % (board, post)
+        resp.body = json.dumps({"redirect": resp.location})
 
-class ThreadsResource:
+class BoardResource:
     def __init__(self, db):
         self.db = db
 
@@ -177,34 +160,19 @@ class ThreadsResource:
 
         resp.status = falcon.HTTP_201
         resp.location = '/%s/%s/' % (board, post.inserted_id)
-
-class DefaultSink(object):
-    def on_get(self, req, resp):
-        resp.body = str(req.path)
-
-def user_loader():
-    return {'username': 'anonymous'}
-auth_backend = falcon_auth.NoneAuthBackend(user_loader)
-auth_middleware = falcon_auth.FalconAuthMiddleware(auth_backend)
+        resp.body = json.dumps({"redirect": resp.location})
 
 # Configure your WSGI server to load "threads.app" (app is a WSGI callable)
-app = falcon.API(middleware=[auth_middleware])
+app = falcon.API()
 
 db = StorageEngine()
 
-threads = ThreadsResource(db)
+board = BoardResource(db)
 post = PostResource(db)
-app.add_route('/{board}', threads)
-app.add_route('/{board}/', threads)
+app.add_route('/{board}', board)
+app.add_route('/{board}/', board)
 app.add_route('/{board}/{post}', post)
 app.add_route('/{board}/{post}/', post)
-app.add_sink(DefaultSink().on_get, prefix='/')
-#app.add_route('/{board}/', BoardResource(db))
-#app.add_route('/{board}/{thread}', BoardResource(db))
-
-# If a responder ever raised an instance of StorageError, pass control to
-# the given handler.
-app.add_error_handler(StorageError, StorageError.handle)
 
 # Useful for debugging problems in your API; works with pdb.set_trace()
 if __name__ == '__main__':
