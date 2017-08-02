@@ -13,6 +13,8 @@
     Email: {{email}}
 {{#if image}}
     Image: <img src="{{image}}"></img>
+{{else if image_link}}
+    Image: <a href="{{image_link}}">{{image_link}}</a>
 {{/if}}
     Text: {{text}}
    </article>
@@ -22,6 +24,9 @@
   </script>
  </head> 
  <body>
+  <style>
+   article > a::before { content: "THREAD "; background: black; color: green; }
+  </style>
   <main>
    <div id="posts">
    </div>
@@ -29,7 +34,7 @@
     Email: <input type="text" name="email" id="email"></input><br />
     Image: <input type="text" name="image" id="image"></input><br />
     Text: <textarea name="text" id="text"></textarea><br />
-    <button type="submit" name="submit" value="Send" />
+    <button type="submit" name="submit" value="Send"></button>
    </form>
   <script lang="javascript">
 $(document).ready(function(){
@@ -71,5 +76,6 @@ $(document).ready(function(){
   })
 });
   </script>
+  <h4>Also, send me your BTC to 12V5pw2R5TKMj1RJF3TgcenXPQQ7vhkwk1</h4>
  </body>
 </html>
