@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 import traceback
+import urlparse
 from wsgiref import simple_server
 
 import falcon
@@ -10,13 +11,15 @@ import pymongo
 
 logging.basicConfig(level=logging.DEBUG)
 
+boards = ['a', 'b', 'int', 'pr', 'r']
+
 def mongo_limit(cursor, limit):
     skip = cursor.count() - limit
     return cursor.skip(skip >= 0 and skip or 0)
 
 def mongo_page(cursor, page):
     step = 15
-    return mongo_limit(cursor.sort("_id", pymongo.ASCENDING), step * (page + 1)).limit(step)
+    return mongo_limit(cursor.sort("max_comment_id", pymongo.ASCENDING), step * (page + 1)).limit(step)
 
 class StorageEngine:
     with open('mongo.url', 'r') as f:
@@ -24,13 +27,22 @@ class StorageEngine:
     db = client.get_default_database()
 
     def check_board(self, board):
-        if not board in ['b']:
+        if not board in boards:
             raise falcon.HTTPError(falcon.HTTP_404, 'Unknown board', 'Board not found')
 
     def check_post(self, post):
         for field in post:
-            if not field in ['email', 'text', 'parent', 'sage']:
+            if not field in ['email', 'image', 'text', 'parent', 'sage']:
                 raise falcon.HTTPError(falcon.HTTP_403, 'Invalid argument', 'Unknown field: ' + field)
+
+    def sanitize_post(self, post):
+        if 'image' in post and post['image'] != "":
+            image_parsed = urlparse.urlparse(post['image'])
+            if image_parsed[1] in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com']:
+                post['image'] = urlparse.urlunparse(image_parsed)
+            else:
+                post['image'] = None
+                post['image_link'] = urlparse.urlunparse(image_parsed)
 
     def get_posts(self, board):
         self.check_board(board)
@@ -40,26 +52,40 @@ class StorageEngine:
         for thread in threads:
             comments = mongo_limit(coll.find({"parent": thread["_id"]}), 3)
             posts = posts + [thread] + list(comments)
+        for post in posts:
+            self.sanitize_post(post)
         return posts
 
-    def get_post(self, board, post):
+    def get_thread(self, board, thread):
         self.check_board(board)
         coll = self.db['board.' + board]
-        comments = coll.find({"parent": post})
-        post = coll.find_one({"_id": post})
-        return [post] + list(comments)
+        comments = coll.find({"parent": thread})
+        thread = coll.find_one({"_id": thread, "parent": None})
+        if thread == None:
+            return None
+        posts = [thread] + list(comments)
+        for post in posts:
+            self.sanitize_post(post)
+        return posts
 
     def add_post(self, board, parent, post):
         self.check_board(board)
         self.check_post(post)
         counters = self.db['counters']
-        _id = counters.find_and_modify(query={"_id": board}, update={"$inc": {"next": 1}})
+        _id = counters.find_and_modify(query={"_id": "next"}, update={"$inc": {"value": 1}})
         if _id == None:
-            raise falcon.HTTPError(falcon.HTTP_500, 'Counters lost', 'Internal error, can\'t find counter for ' + board)
-        _id = int(_id["next"])
+            counters.insert_one({"_id": "next", "value": 100})
+            _id = 100
+        else:
+            _id = int(_id["value"])
         coll = self.db['board.' + board]
         post["_id"] = _id
         post["parent"] = parent
+        if post["email"].lower() != "sage":
+		if parent != None:
+		    coll.update({"_id": parent}, {"$set": {"max_comment_id": _id}})
+		else:
+		    post["max_comment_id"] = _id
         return coll.insert_one(post)
 
 
@@ -70,7 +96,7 @@ class PostResource:
 
     def on_get(self, req, resp, board, post):
         try:
-            result = self.db.get_post(board, int(post))
+            result = self.db.get_thread(board, int(post))
         except Exception as ex:
             traceback.print_exc()
             logging.error(ex)
@@ -83,6 +109,9 @@ class PostResource:
                 'Service Outage',
                 description,
                 30)
+
+        if result == None:
+            raise falcon.HTTPError(falcon.HTTP_403, 'Unknown post', 'Maybe another board?')
 
         resp.status = falcon.HTTP_200
         resp.body = json.dumps(result)
@@ -111,7 +140,7 @@ class PostResource:
 
         resp.status = falcon.HTTP_201
         resp.location = '/%s/%s/' % (board, post)
-        resp.body = json.dumps({"redirect": resp.location})
+        resp.body = "{}"
 
 class BoardResource:
     def __init__(self, db):
@@ -160,7 +189,7 @@ class BoardResource:
 
         resp.status = falcon.HTTP_201
         resp.location = '/%s/%s/' % (board, post.inserted_id)
-        resp.body = json.dumps({"redirect": resp.location})
+        resp.body = "{}"
 
 # Configure your WSGI server to load "threads.app" (app is a WSGI callable)
 app = falcon.API()
