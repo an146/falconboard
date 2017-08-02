@@ -5,8 +5,15 @@
   <title>Falconboard</title>
   <script id="post-template" type="text/x-handlebars-template">
    <article>
-    Id: <a href="http://falconboard.net.ru/{{board}}/{{_id}}/">{{_id}}</a>
+{{#if parent}}
+    Id: {{_id}}
+{{else}}
+    Id: <a href="/{{board}}/{{_id}}/">{{_id}}</a>
+{{/if}}
     Email: {{email}}
+{{#if image}}
+    Image: <img src="{{image}}"></img>
+{{/if}}
     Text: {{text}}
    </article>
   </script>
@@ -20,29 +27,33 @@
    </div>
    <form action="" method="post">
     Email: <input type="text" name="email" id="email"></input><br />
+    Image: <input type="text" name="image" id="image"></input><br />
     Text: <textarea name="text" id="text"></textarea><br />
     <button type="submit" name="submit" value="Send" />
    </form>
   <script lang="javascript">
 $(document).ready(function(){
- $("#posts").text("browsing " + window.location.pathname);
  var path = "/_api" + window.location.pathname;
  var board = window.location.pathname.slice(1, window.location.pathname.slice(1).indexOf('/') + 1);
+ var boardpath = window.location.pathname.slice(("/" + board + "/").length);
+ $("#posts").html("browsing <a href=\"/" + board + "/\">/" + board + "/</a>" + boardpath);
  //$("form").attr("action", path);
  $("form").submit(function(event) {
-  req = {"email": $("#email").val(), "text": $("#text").val()};
-  ajax = $.ajax({
-   type: "POST",
-   url: path,
-   data: JSON.stringify(req),
-   contentType: "application/json; charset=utf-8"
-  });
-  ajax.done(function(data, textStatus, request) {
-   document.location.href = request.getResponseHeader("Location");
-  });
-  ajax.fail(function(xhr, status) {
-   alert(status);
-  });
+  req = {"email": $("#email").val(), "image": $("#image").val(), "text": $("#text").val()};
+  if (req["email"] != "" || req["text"] != "") {
+   ajax = $.ajax({
+    type: "POST",
+    url: path,
+    data: JSON.stringify(req),
+    contentType: "application/json; charset=utf-8"
+   });
+   ajax.done(function(data, textStatus, request) {
+    document.location.href = request.getResponseHeader("Location");
+   });
+   ajax.fail(function(xhr, status) {
+    alert(status);
+   });
+  }
   event.preventDefault();
  });
  var jqxhr = $.ajax(path)
@@ -55,8 +66,8 @@ $(document).ready(function(){
      $("#posts").append(post_template(post));
     }
   })
-  .fail(function() {
-    alert("ajax error");
+  .fail(function(xhr, status) {
+    alert(status);
   })
 });
   </script>
