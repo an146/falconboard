@@ -39,13 +39,15 @@ class StorageEngine:
 
     def check_post(self, post):
         for field in post:
-            if not field in ['email', 'image', 'text', 'parent', 'sage']:
+            if not field in ['email', 'image', 'text', 'parent']:
                 raise falcon.HTTPError(falcon.HTTP_403, 'Invalid argument', 'Unknown field: ' + field)
+        if len(post['email']) >= 100 or len(post['image']) >= 500 or len(post['text']) >= 1000 or ('parent' in post and not isinstance(post['parent'], (int, long))):
+            raise falcon.HTTPError(falcon.HTTP_403, 'Invalid argument', 'Post check failed')
 
     def sanitize_post(self, post):
         if 'image' in post and post['image'] != "":
             image_parsed = urlparse.urlparse(post['image'])
-            if image_parsed[1] in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com', 'image.ibb.co']:
+            if image_parsed[1] in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com', 'image.ibb.co', 'vignette3.wikia.nocookie.net', 'images4.alphacoders.com']:
                 post['image'] = urlparse.urlunparse(image_parsed)
             else:
                 post['image'] = None
