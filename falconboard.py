@@ -18,7 +18,7 @@ def mongo_limit(cursor, limit):
     return cursor.skip(skip >= 0 and skip or 0)
 
 def mongo_page(cursor, page):
-    step = 15
+    step = 42
     return mongo_limit(cursor.sort("score", pymongo.ASCENDING), step * (page + 1)).limit(step)
 
 def update_post_score(post):
