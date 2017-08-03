@@ -26,7 +26,7 @@ def update_post_score(post):
         post["sages"] = 0
     if not "max_comment_id" in post:
         post["max_comment_id"] = post["_id"]
-    post["score"] = post["max_comment_id"] - post["sages"] * 40
+    post["score"] = post["max_comment_id"] - post["sages"] * 150
 
 class StorageEngine:
     with open('mongo.url', 'r') as f:
