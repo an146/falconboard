@@ -38,7 +38,7 @@ class StorageEngine:
     def sanitize_post(self, post):
         if 'image' in post and post['image'] != "":
             image_parsed = urlparse.urlparse(post['image'])
-            if image_parsed[1] in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com']:
+            if image_parsed[1] in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com', 'image.ibb.co']:
                 post['image'] = urlparse.urlunparse(image_parsed)
             else:
                 post['image'] = None
