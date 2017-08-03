@@ -19,7 +19,14 @@ def mongo_limit(cursor, limit):
 
 def mongo_page(cursor, page):
     step = 15
-    return mongo_limit(cursor.sort("max_comment_id", pymongo.ASCENDING), step * (page + 1)).limit(step)
+    return mongo_limit(cursor.sort("score", pymongo.ASCENDING), step * (page + 1)).limit(step)
+
+def update_post_score(post):
+    if not "sages" in post:
+        post["sages"] = 0
+    if not "max_comment_id" in post:
+        post["max_comment_id"] = post["_id"]
+    post["score"] = post["max_comment_id"] - post["sages"] * 40
 
 class StorageEngine:
     with open('mongo.url', 'r') as f:
@@ -44,6 +51,20 @@ class StorageEngine:
                 post['image'] = None
                 post['image_link'] = urlparse.urlunparse(image_parsed)
 
+    def update_score(self, coll, _id):
+        post = coll.find_one({"_id": _id})
+        print 'Updating', _id, post.keys()
+        update_post_score(post)
+        print _id, post["score"]
+        coll.update({"_id": _id}, {"$set": {"score": post["score"]}})
+
+    def migrate(self):
+        print 'Migrate'
+        for board in boards:
+            coll = self.db['board.' + board]
+            for post in coll.find():
+                self.update_score(coll, post["_id"])
+
     def get_posts(self, board):
         self.check_board(board)
         coll = self.db['board.' + board]
@@ -54,6 +75,15 @@ class StorageEngine:
             posts = posts + [thread] + list(comments)
         for post in posts:
             self.sanitize_post(post)
+        return posts
+
+    def get_catalog(self, board):
+        self.check_board(board)
+        coll = self.db['board.' + board]
+        posts = []
+        for post in coll.find({"parent": None}).sort("score", pymongo.ASCENDING):
+            self.sanitize_post(post)
+            posts.append(post)
         return posts
 
     def get_thread(self, board, thread):
@@ -81,11 +111,16 @@ class StorageEngine:
         coll = self.db['board.' + board]
         post["_id"] = _id
         post["parent"] = parent
-        if post["email"].lower() != "sage":
-		if parent != None:
-		    coll.update({"_id": parent}, {"$set": {"max_comment_id": _id}})
-		else:
-		    post["max_comment_id"] = _id
+        if parent != None:
+            if post["email"].lower() != "sage":
+                coll.update({"_id": parent}, {"$set": {"max_comment_id": _id}})
+            else:
+                coll.update({"_id": parent}, {"$inc": {"sages": 1}})
+	    self.update_score(coll, parent)
+	else:
+            post["max_comment_id"] = _id
+            update_post_score(post)
+		
         return coll.insert_one(post)
 
 
@@ -191,6 +226,29 @@ class BoardResource:
         resp.location = '/%s/%s/' % (board, post.inserted_id)
         resp.body = "{}"
 
+class CatalogResource:
+    def __init__(self, db):
+        self.db = db
+
+    def on_get(self, req, resp, board):
+        try:
+            result = self.db.get_catalog(board)
+        except Exception as ex:
+            traceback.print_exc()
+            logging.error(ex)
+
+            description = ('Aliens have attacked our base! We will '
+                           'be back as soon as we fight them off. '
+                           'We appreciate your patience.')
+
+            raise falcon.HTTPServiceUnavailable(
+                'Service Outage',
+                description,
+                30)
+
+        resp.status = falcon.HTTP_200
+        resp.body = json.dumps(result)
+
 # Configure your WSGI server to load "threads.app" (app is a WSGI callable)
 app = falcon.API()
 
@@ -198,12 +256,16 @@ db = StorageEngine()
 
 board = BoardResource(db)
 post = PostResource(db)
+catalog = CatalogResource(db)
 app.add_route('/{board}', board)
 app.add_route('/{board}/', board)
+app.add_route('/{board}/catalog', catalog)
+app.add_route('/{board}/catalog/', catalog)
 app.add_route('/{board}/{post}', post)
 app.add_route('/{board}/{post}/', post)
 
 # Useful for debugging problems in your API; works with pdb.set_trace()
 if __name__ == '__main__':
+    db.migrate()
     httpd = simple_server.make_server('127.0.0.1', 8000, app)
     httpd.serve_forever()
