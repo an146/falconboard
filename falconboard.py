@@ -53,9 +53,7 @@ class StorageEngine:
 
     def update_score(self, coll, _id):
         post = coll.find_one({"_id": _id})
-        print 'Updating', _id, post.keys()
         update_post_score(post)
-        print _id, post["score"]
         coll.update({"_id": _id}, {"$set": {"score": post["score"]}})
 
     def migrate(self):
