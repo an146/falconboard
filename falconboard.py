@@ -35,6 +35,7 @@ class StorageEngine:
 
     def check_board(self, board):
         if not board in boards:
+            print board
             raise falcon.HTTPError(falcon.HTTP_404, 'Unknown board', 'Board not found: ' + board)
 
     def check_post(self, post):
