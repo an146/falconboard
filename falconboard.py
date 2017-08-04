@@ -42,7 +42,7 @@ class StorageEngine:
         for field in post:
             if not field in ['email', 'image', 'text', 'parent']:
                 raise falcon.HTTPError(falcon.HTTP_403, 'Invalid argument', 'Unknown field: ' + field)
-        if len(post['email']) >= 100 or len(post['image']) >= 500 or len(post['text']) >= 1000 or ('parent' in post and not isinstance(post['parent'], (int, long))):
+        if len(post['email']) >= 100 or len(post['image']) >= 500 or len(post['text']) >= 20000 or ('parent' in post and not isinstance(post['parent'], (int, long))):
             raise falcon.HTTPError(falcon.HTTP_403, 'Invalid argument', 'Post check failed')
 
     def sanitize_post(self, post):
@@ -71,7 +71,9 @@ class StorageEngine:
         coll = self.db['board.' + board]
         posts = []
         threads = mongo_page(coll.find({"parent": None}), 0)
-        for thread in threads:
+        ts = list(threads)
+        ts.reverse()
+        for thread in ts:
             comments = mongo_limit(coll.find({"parent": thread["_id"]}), 3)
             posts = posts + [thread] + list(comments)
         for post in posts:
