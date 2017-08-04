@@ -3,6 +3,7 @@ import logging
 import uuid
 import traceback
 import urlparse
+import markdown
 from wsgiref import simple_server
 
 import falcon
@@ -53,6 +54,8 @@ class StorageEngine:
             else:
                 post['image'] = None
                 post['image_link'] = urlparse.urlunparse(image_parsed)
+        post['html'] = markdown.markdown(post['text'] or '')
+        del post['text']
 
     def update_score(self, coll, _id):
         post = coll.find_one({"_id": _id})
