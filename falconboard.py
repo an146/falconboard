@@ -8,6 +8,7 @@ from wsgiref import simple_server
 
 import falcon
 import pymongo
+import bleach
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -49,12 +50,12 @@ class StorageEngine:
     def sanitize_post(self, post):
         if 'image' in post and post['image'] != "":
             image_parsed = urlparse.urlparse(post['image'])
-            if image_parsed[1] in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com', 'image.ibb.co', 'vignette3.wikia.nocookie.net', 'images4.alphacoders.com']:
+            if image_parsed[1] in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com', 'image.ibb.co', 'vignette3.wikia.nocookie.net', 'images4.alphacoders.com', 'falconboard.net.ru']:
                 post['image'] = urlparse.urlunparse(image_parsed)
             else:
                 post['image'] = None
                 post['image_link'] = urlparse.urlunparse(image_parsed)
-        post['html'] = markdown.markdown(post['text'] or '')
+        post['html'] = bleach.clean(markdown.markdown(post['text'] or '').replace('<p>', '').replace('</p>', ''))
         del post['text']
 
     def update_score(self, coll, _id):
