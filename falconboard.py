@@ -52,7 +52,7 @@ class StorageEngine:
         for wildcard in allowed_hosts:
             if fnmatch.fnmatch(host, wildcard):
                 return True
-        return host in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com', 'image.ibb.co', 'vignette3.wikia.nocookie.net', 'images4.alphacoders.com', 'falconboard.net.ru']
+        return False
 
     def sanitize_post(self, post):
         if 'image' in post and post['image'] != "":
@@ -278,6 +278,11 @@ class CatalogResource:
         resp.status = falcon.HTTP_200
         resp.body = json.dumps(result)
 
+class AllowedHostsResource:
+    def on_get(self, req, resp):
+        resp.status = falcon.HTTP_200
+        resp.body = json.dumps(allowed_hosts)
+
 # Configure your WSGI server to load "threads.app" (app is a WSGI callable)
 app = falcon.API()
 
@@ -290,6 +295,7 @@ with open('allowed_hosts', 'r') as f:
 board = BoardResource(db)
 post = PostResource(db)
 catalog = CatalogResource(db)
+app.add_route('/allowed_hosts', AllowedHostsResource())
 app.add_route('/{board}', board)
 app.add_route('/{board}/', board)
 app.add_route('/{board}/catalog', catalog)
