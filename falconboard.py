@@ -9,6 +9,7 @@ from wsgiref import simple_server
 import falcon
 import pymongo
 import bleach
+import fnmatch
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -47,10 +48,16 @@ class StorageEngine:
         if len(post['email']) >= 100 or len(post['image']) >= 500 or len(post['text']) >= 20000 or ('parent' in post and not isinstance(post['parent'], (int, long))):
             raise falcon.HTTPError(falcon.HTTP_403, 'Invalid argument', 'Post check failed')
 
+    def check_image_host(self, host):
+        for wildcard in allowed_hosts:
+            if fnmatch.fnmatch(host, wildcard):
+                return True
+        return host in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com', 'image.ibb.co', 'vignette3.wikia.nocookie.net', 'images4.alphacoders.com', 'falconboard.net.ru']
+
     def sanitize_post(self, post):
         if 'image' in post and post['image'] != "":
             image_parsed = urlparse.urlparse(post['image'])
-            if image_parsed[1] in ['upload.wikimedia.org', 'wallpapers.wallhaven.cc', 'i.imgur.com', 'imgur.com', 'image.ibb.co', 'vignette3.wikia.nocookie.net', 'images4.alphacoders.com', 'falconboard.net.ru']:
+            if self.check_image_host(image_parsed[1]):
                 post['image'] = urlparse.urlunparse(image_parsed)
             else:
                 post['image'] = None
@@ -130,6 +137,9 @@ class StorageEngine:
 		
         return coll.insert_one(post)
 
+    def delete_post(self, board, post):
+        coll = self.db['board.' + board]
+        coll.remove({"_id": int(post)})
 
 
 class PostResource:
@@ -233,6 +243,18 @@ class BoardResource:
         resp.location = '/%s/%s/' % (board, post.inserted_id)
         resp.body = "{}"
 
+class DeleteResource:
+    def __init__(self, db):
+        self.db = db
+
+    def on_get(self, req, resp, board, post):
+        marker = req.get_param('marker') or ''
+        limit = req.get_param_as_int('limit') or 50
+
+        db.delete_post(board, post)
+        resp.status = falcon.HTTP_200
+        resp.body = '"deleted"'
+
 class CatalogResource:
     def __init__(self, db):
         self.db = db
@@ -261,6 +283,10 @@ app = falcon.API()
 
 db = StorageEngine()
 
+with open('admin.pwd', 'r') as f:
+    admin_pwd = f.read().rstrip()
+with open('allowed_hosts', 'r') as f:
+    allowed_hosts = [wc for wc in f.read().split('\n') if wc != '' and wc != None]
 board = BoardResource(db)
 post = PostResource(db)
 catalog = CatalogResource(db)
@@ -270,6 +296,8 @@ app.add_route('/{board}/catalog', catalog)
 app.add_route('/{board}/catalog/', catalog)
 app.add_route('/{board}/{post}', post)
 app.add_route('/{board}/{post}/', post)
+with open('admin.pwd', 'r') as f:
+    app.add_route('/{board}/{post}/delete/' + admin_pwd, DeleteResource(db))
 
 # Useful for debugging problems in your API; works with pdb.set_trace()
 if __name__ == '__main__':
