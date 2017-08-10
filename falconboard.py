@@ -3,18 +3,19 @@ import logging
 import uuid
 import traceback
 import urlparse
-import markdown
+import markdown2
 from wsgiref import simple_server
 
 import falcon
 import pymongo
 import bleach
+import bleach_whitelist
 import fnmatch
 
 
 logging.basicConfig(level=logging.DEBUG)
 
-boards = ['a', 'b', 'int', 'pr', 'r']
+boards = ['a', 'b', 'c', 'int', 'm', 'r']
 
 def mongo_limit(cursor, limit):
     skip = cursor.count() - limit
@@ -62,7 +63,8 @@ class StorageEngine:
             else:
                 post['image'] = None
                 post['image_link'] = urlparse.urlunparse(image_parsed)
-        post['html'] = bleach.clean(markdown.markdown(post['text'] or '').replace('<p>', '').replace('</p>', ''))
+        html = markdown2.markdown(post['text'] or '', extras=["fenced-code-blocks"])
+        post['html'] = bleach.clean(html.replace('<p>', '').replace('</p>', ''), bleach_whitelist.print_tags + ['pre'], bleach_whitelist.print_attrs, bleach_whitelist.all_styles)
         del post['text']
 
     def update_score(self, coll, _id):
