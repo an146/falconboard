@@ -64,7 +64,7 @@ class StorageEngine:
                 post['image'] = None
                 post['image_link'] = urlparse.urlunparse(image_parsed)
         html = markdown2.markdown(post['text'] or '', extras=["fenced-code-blocks"])
-        post['html'] = bleach.clean(html.replace('<p>', '').replace('</p>', ''), bleach_whitelist.print_tags + ['pre'], bleach_whitelist.print_attrs, bleach_whitelist.all_styles)
+        post['html'] = bleach.clean(html.replace('<p>', '').replace('</p>', ''), bleach_whitelist.print_tags + ['a', 'pre'], bleach_whitelist.print_attrs, bleach_whitelist.all_styles)
         del post['text']
 
     def update_score(self, coll, _id):
