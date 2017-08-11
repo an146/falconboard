@@ -1,14 +1,20 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
  <head>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.10/handlebars.min.js"></script>
   <title>Falconboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/pygments.css" rel="stylesheet">
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
   <script id="post-template" type="text/x-handlebars-template">
+  <div class="row">
    <article>
 {{#if parent}}
-    Id: {{_id}}
+    {{_id}}
 {{else}}
-    Id: <a href="/{{board}}/{{_id}}/">{{_id}}</a>
+    <a href="/{{board}}/{{_id}}/" class="threadlink">{{_id}}</a>
 {{/if}}
     Email: {{email}}
 {{#if image}}
@@ -16,8 +22,12 @@
 {{else if image_link}}
     Image: <a href="{{image_link}}">{{image_link}}</a>
 {{/if}}
-    Text: {{text}}
+    Text: {{{html}}}
+{{#if admin}}
+    <a href="/_api/{{board}}/{{_id}}/delete/">Delete</a>
+{{/if}}
    </article>
+  </div>
   </script>
   <script lang="javascript">
    var post_template = Handlebars.compile($("#post-template").html());
@@ -25,23 +35,31 @@
  </head> 
  <body>
   <style>
-   article > a::before { content: "THREAD "; background: black; color: green; }
+   img { max-width: 1299px; }
+   article > a.threadlink::before { content: "THREAD "; background: black; color: green; }
+   p { display: inline }
   </style>
   <main>
-   <div id="posts">
+   <div class="container-fluid">
+     <div id="posts">
+     </div>
+     <div class="row">
+      <div class="form-group">
+       <form action="" method="post">
+        Email: <input class="form-control" type="text" name="email" id="email"></input><br />
+        Image: <input class="form-control" type="text" name="image" id="image"></input><br />
+        Text: <textarea class="form-control" name="text" id="text"></textarea><br />
+        <button class="form-control" type="submit" name="submit" value="Send">Send</button>
+       </form>
+      </div>
+     </div>
    </div>
-   <form action="" method="post">
-    Email: <input type="text" name="email" id="email"></input><br />
-    Image: <input type="text" name="image" id="image"></input><br />
-    Text: <textarea name="text" id="text"></textarea><br />
-    <button type="submit" name="submit" value="Send"></button>
-   </form>
   <script lang="javascript">
 $(document).ready(function(){
  var path = "/_api" + window.location.pathname;
  var board = window.location.pathname.slice(1, window.location.pathname.slice(1).indexOf('/') + 1);
  var boardpath = window.location.pathname.slice(("/" + board + "/").length);
- $("#posts").html("browsing <a href=\"/" + board + "/\">/" + board + "/</a>" + boardpath);
+ $("#posts").html("browsing <a href=\"/" + board + "/\">/" + board + "/</a>" + boardpath + ". <a href=\"https://falconboard.net.ru/\">Index</a>");
  //$("form").attr("action", path);
  $("form").submit(function(event) {
   req = {"email": $("#email").val(), "image": $("#image").val(), "text": $("#text").val()};
@@ -68,6 +86,7 @@ $(document).ready(function(){
     for (var i = 0; i < data.length; i++) {
      var post = data[i];
      post["board"] = board;
+     post["admin"] = (document.cookie.indexOf('admin_session') >= 0);
      $("#posts").append(post_template(post));
     }
   })
