@@ -16,13 +16,13 @@
 {{else}}
     <a href="/{{board}}/{{_id}}/" class="threadlink">{{_id}}</a>
 {{/if}}
-    Email: {{email}}
+    {{email}}
 {{#if image}}
-    Image: <img src="{{image}}"></img>
+    <img src="{{image}}"></img>
 {{else if image_link}}
-    Image: <a href="{{image_link}}">{{image_link}}</a>
+    <a href="{{image_link}}">{{image_link}}</a>
 {{/if}}
-    Text: {{{html}}}
+    {{{html}}}
 {{#if admin}}
     <a href="/_api/{{board}}/{{_id}}/delete/">Delete</a>
 {{/if}}
