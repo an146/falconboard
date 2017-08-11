@@ -67,7 +67,6 @@ class StorageEngine:
         attrs = bleach_whitelist.print_attrs
         attrs['div'] = ['class']
         post['html'] = bleach.clean(html, bleach_whitelist.print_tags + ['a', 'div', 'pre'], attributes=attrs, styles=bleach_whitelist.all_styles + ["codehilite"])
-        print html, post['html']
         del post['text']
 
     def update_score(self, coll, _id):
