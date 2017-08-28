@@ -65,6 +65,7 @@ class StorageEngine:
                 post['image_link'] = urlparse.urlunparse(image_parsed)
         html = markdown2.markdown(post['text'] or '', extras=["fenced-code-blocks"])
         attrs = bleach_whitelist.print_attrs
+        attrs['a'] = ['href']
         attrs['div'] = ['class']
         post['html'] = bleach.clean(html, bleach_whitelist.print_tags + ['a', 'div', 'pre'], attributes=attrs, styles=bleach_whitelist.all_styles + ["codehilite"])
         del post['text']
@@ -89,7 +90,9 @@ class StorageEngine:
         ts = list(threads)
         ts.reverse()
         for thread in ts:
-            comments = mongo_limit(coll.find({"parent": thread["_id"]}), 3)
+            all_comments = coll.find({"parent": thread["_id"]})
+            comments = mongo_limit(all_comments, 3)
+            thread["skipped"] = all_comments.count() - comments.count(True)
             posts = posts + [thread] + list(comments)
         for post in posts:
             self.sanitize_post(post)
@@ -101,6 +104,7 @@ class StorageEngine:
         posts = []
         for post in coll.find({"parent": None}).sort("score", pymongo.ASCENDING):
             self.sanitize_post(post)
+            post["skipped"] = coll.find({"parent": post["_id"]}).count()
             posts.append(post)
         return posts
 
