@@ -16,7 +16,10 @@
 {{else}}
     <a href="/{{board}}/{{_id}}/" class="threadlink">{{_id}}</a>
 {{/if}}
-    {{email}}
+{{#if skipped}}
+    (Skipped {{skipped}} posts)
+{{/if}}
+    <a href="mailto:{{email}}">{{email}}</a>
 {{#if image}}
     <img src="{{image}}"></img>
 {{else if image_link}}
@@ -35,6 +38,7 @@
  </head> 
  <body>
   <style>
+   body { background-color: #dfd; }
    img { max-width: 1299px; }
    article > a.threadlink::before { content: "THREAD "; background: black; color: green; }
    p { display: inline }
@@ -95,6 +99,6 @@ $(document).ready(function(){
   })
 });
   </script>
-  <h4>Also, send me your BTC to 12V5pw2R5TKMj1RJF3TgcenXPQQ7vhkwk1</h4>
+  <h4>Also, plz <a href="/donate.html">donate</a></h4>
  </body>
 </html>
